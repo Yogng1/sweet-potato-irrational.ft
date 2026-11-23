@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>무리구마 대결 · 선생님 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #f1ebff; --grid: #dcd0f6; --card: #fffdf7; --ink: #1f1b2e; --muted: #5d586f; --yellow: #ffd23f;
+  --font-d: 'Jua', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-b: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background-color: var(--paper); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 28px 28px; color: var(--ink); font-family: var(--font-b); font-size: 16px; line-height: 1.5; }
+h1, h2, h3 { font-family: var(--font-d); font-weight: 400; margin: 0; }
+button { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 48px; }
+.card { background: var(--card); border: 3px solid var(--ink); border-radius: 18px 6px 20px 8px; box-shadow: 6px 6px 0 var(--ink); padding: 16px; }
+.btn { font-family: var(--font-d); font-size: 1rem; background: var(--yellow); border: 3px solid var(--ink); border-radius: 12px 5px 12px 5px; padding: 5px 14px; box-shadow: 3px 3px 0 var(--ink); cursor: pointer; }
+.btn:active { transform: translate(3px, 3px); box-shadow: none; }
+.btn.alt { background: #fff; }
+.btn.red { background: #ffb3b3; }
+.btn.sm { font-size: .85rem; padding: 1px 9px; border-width: 2px; box-shadow: 2px 2px 0 var(--ink); }
+.btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.muted { color: var(--muted); }
+
+/* 비밀번호 화면 */
+.gate { max-width: 420px; margin: 12vh auto 0; text-align: center; }
+.gate h1 { font-size: 1.9rem; margin-bottom: 6px; }
+.gate input { font: inherit; font-size: 1.4rem; width: 9em; text-align: center; letter-spacing: .4em; padding: 8px 10px; border: 3px solid var(--ink); border-radius: 12px; margin: 14px 0 6px; background: #fff; }
+.gate .err { color: #c0392b; font-weight: bold; min-height: 1.5em; }
+
+/* 관리 화면 */
+.top { display: flex; flex-wrap: wrap; gap: 14px; align-items: stretch; margin-bottom: 16px; }
+.top .card { flex: 1 1 320px; }
+.top h2 { font-size: 1.3rem; margin-bottom: 6px; }
+.rank ol { list-style: none; margin: 0; padding: 0; }
+.rank li { display: flex; gap: 8px; padding: 2px 0; }
+.rank li b { font-family: var(--font-d); font-weight: 400; flex: 1; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.room h3 { font-size: 1.25rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip { font-family: var(--font-b); font-size: .8rem; font-weight: bold; padding: 0 8px; border: 2px solid var(--ink); border-radius: 999px; background: #eee; }
+.chip.wait { background: #e9fbef; } .chip.go { background: var(--yellow); } .chip.play { background: #cfe0ff; }
+.mem { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+.mem li { display: flex; align-items: center; gap: 8px; border: 2px solid var(--ink); border-radius: 10px; padding: 3px 8px; background: #fff; min-height: 38px; }
+.mem li.empty { border-style: dashed; color: var(--muted); background: transparent; }
+.mem li b { font-family: var(--font-d); font-weight: 400; flex: 1; word-break: keep-all; }
+.mem li.rd { background: #e9fbef; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts .btn { font-size: .92rem; padding: 4px 10px; }
+.note { margin-top: 14px; font-size: .9rem; color: var(--muted); }
+
+/* 관전 */
+.modal { position: fixed; inset: 0; background: rgba(20, 16, 50, .6); z-index: 20; display: flex; align-items: center; justify-content: center; padding: 14px; }
+.modal .card { width: min(720px, 100%); max-height: 92vh; overflow: auto; }
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 10px 0; }
+.spec .p { border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; background: #fff; }
+.spec .p b { font-family: var(--font-d); font-weight: 400; display: block; }
+.spec .p.dead { opacity: .45; }
+.spec .hp { color: #ff4d79; letter-spacing: 1px; }
+.stage { height: 150px; border: 3px solid var(--ink); border-radius: 12px; background: linear-gradient(#bfe3ff, #eaf6ff); display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- 비밀번호 -->
+  <div class="gate card" id="gate">
+    <h1>🔒 선생님 관리</h1>
+    <p class="muted">무리구마 대결 · 교사용</p>
+    <input id="pw" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••" aria-label="비밀번호">
+    <p class="err" id="pwErr"></p>
+    <button type="button" class="btn" id="pwGo">들어가기</button>
+  </div>
+
+  <!-- 관리 화면 -->
+  <div id="admin" hidden>
+    <div class="top">
+      <div class="card">
+        <h1 style="font-size:1.6rem">🍠 무리구마 대결 · 선생님 관리</h1>
+        <p class="muted">방은 7개, 한 방에 최대 3명이에요. 모두 준비완료가 되면 [시작 허용]을 눌러 게임을 시작해요. 2명이어도 시작할 수 있어요.</p>
+        <div class="toolbar">
+          <button type="button" class="btn alt" id="resetAll">전체 방 초기화</button>
+          <button type="button" class="btn alt" id="lock">🔒 잠그기</button>
+        </div>
+      </div>
+      <div class="card rank" id="rank"></div>
+    </div>
+    <div class="rooms" id="rooms"></div>
+    <p class="note">학생들이 들어오고 준비하면 이 화면에 실시간으로 나타나요. 게임이 끝나면 랭킹에 점수(1등 3점, 2등 1점)가 저절로 들어가요. 학생이 안 나가고 멈춘 방은 [초기화]로 비워요.</p>
+  </div>
+</div>
+
+<div class="modal" id="spec" hidden>
+  <div class="card">
+    <h2 id="specT"></h2>
+    <div class="stage" id="specStage">🎬 </div>
+    <div class="spec" id="specP"></div>
+    <button type="button" class="btn" id="specX">닫기</button>
+  </div>
+</div>
+
+<script>
+/* Firebase (공개돼도 되는 설정값) */
+window.FBP = (async () => {
+  const cfg = { apiKey: "AIzaSyAgOoW1HNFgvZCv8CHHJ6Q-ky9nRiIgBaQ", authDomain: "irrational-sweet-potato-game.firebaseapp.com", databaseURL: "https://irrational-sweet-potato-game-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "irrational-sweet-potato-game", storageBucket: "irrational-sweet-potato-game.firebasestorage.app", messagingSenderId: "605430387469", appId: "1:605430387469:web:f5d9f699c1889faebe5644" };
+  const G = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [a, u, d] = await Promise.all([import(G + 'firebase-app.js'), import(G + 'firebase-auth.js'), import(G + 'firebase-database.js')]);
+  const app = a.initializeApp(cfg), auth = u.getAuth(app), db = d.getDatabase(app);
+  return { auth: auth, root: d.ref(db), signIn: () => auth.currentUser ? Promise.resolve() : u.signInAnonymously(auth), ref: p => d.ref(db, p), get: d.get, set: d.set, update: d.update, remove: d.remove, onValue: d.onValue };
+})();
+window.FBP.catch(() => { });
+</script>
+<script>
+(function () {
+'use strict';
+/* 비밀번호는 화면을 가리는 용도예요. 개인정보가 없는 게임이라 이 정도로 충분해요. */
+const PW = '5525';
+const $ = (s, r) => (r || document).querySelector(s);
+const S = { rooms: [], rank: [], spec: -1, net: 'connecting', err: '' };
+for (let i = 0; i < 7; i++) S.rooms.push({ m: [], st: 'open', start: null, pub: null });
+let FB = null;
+
+const allReady = r => r.m.length >= 2 && r.m.every(x => x.ready);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function render() {
+  const med = ['🥇', '🥈', '🥉'], top = S.rank.slice(0, 3);
+  const net = S.net === 'ok' ? '<span class="chip wait">🟢 연결됨</span>' : S.net === 'fail' ? '<span class="chip" style="background:#ffd0d0">🔴 연결 실패 ' + esc(S.err) + '</span>' : '<span class="chip">⏳ 연결 중…</span>';
+  $('#rank').innerHTML = '<h2>🏆 랭킹 TOP 3 ' + net + '</h2>' + (top.length ? '<ol>' + top.map((x, i) => '<li><span>' + med[i] + '</span><b>' + esc(x.nick) + '</b><span>' + x.pts + '점 · ' + x.wins + '승</span></li>').join('') + '</ol>' : '<p class="muted">아직 기록이 없어요.</p>') +
+    '<div class="toolbar"><button type="button" class="btn alt sm" data-a="rankReset">랭킹 초기화</button></div>';
+  $('#rooms').innerHTML = S.rooms.map((r, i) => {
+    const pl = r.st === 'playing', ar = allReady(r), has = r.m.length > 0 || pl;
+    const chip = pl ? '<span class="chip play">게임 중</span>' : !r.m.length ? '<span class="chip">빈 방</span>' : ar ? '<span class="chip go">모두 준비!</span>' : '<span class="chip wait">대기 중</span>';
+    const slots = [0, 1, 2].map(k => { const m = r.m[k]; return m ? '<li class="' + (m.ready ? 'rd' : '') + '"><b>' + esc(m.nick) + '</b><span>' + (pl ? '🎮' : m.ready ? '✅' : '⏳') + '</span><button type="button" class="btn red sm" data-a="kick" data-i="' + i + '" data-k="' + k + '">강퇴</button></li>' : '<li class="empty">빈자리</li>'; }).join('');
+    return '<div class="card room"><h3>' + (i + 1) + '번 방 ' + chip + '</h3><ul class="mem">' + slots + '</ul><div class="acts">' +
+      '<button type="button" class="btn" data-a="go" data-i="' + i + '"' + (!pl && ar ? '' : ' disabled') + '>✅ 시작 허용</button>' +
+      '<button type="button" class="btn alt" data-a="spec" data-i="' + i + '"' + (r.m.length ? '' : ' disabled') + '>👁 관전</button>' +
+      '<button type="button" class="btn alt" data-a="reset" data-i="' + i + '"' + (has ? '' : ' disabled') + '>↺ 초기화</button></div></div>';
+  }).join('');
+  if (S.spec >= 0) renderSpec();
+}
+function renderSpec() {
+  const r = S.rooms[S.spec]; if (!r) return;
+  const pb = r.pub, pl = r.st === 'playing';
+  $('#specT').textContent = (S.spec + 1) + '번 방 관전 ' + (pl ? '(게임 중)' : '(대기 중)');
+  $('#specStage').innerHTML = pl && pb ? ((pb.w ? '🏆 ' + esc(pb.w) + ' 승리!' : (pb.ph === 'spin' ? '🎲 순서를 정하는 중' : pb.ph === 'wait' ? '시작 준비 중' : '🎯 지금 차례: <b>' + esc(pb.turn) + '</b>')) + '<br><small>' + esc(pb.msg) + '</small>') : pl ? '게임을 시작하는 중…' : '아직 게임이 시작되지 않았어요.';
+  const rows = pl && pb && pb.pl ? pb.pl.map(x => ({ nick: x.n, hp: x.l, dead: !x.a })) : r.m.map(m => ({ nick: m.nick, ready: m.ready }));
+  $('#specP').innerHTML = rows.map(m => '<div class="p' + (m.dead ? ' dead' : '') + '"><b>' + esc(m.nick) + '</b>' + (m.hp != null ? '<span class="hp">' + '♥'.repeat(Math.max(0, m.hp)) + '<span style="opacity:.25">' + '♥'.repeat(Math.max(0, 5 - m.hp)) + '</span></span>' : '<span>' + (m.ready ? '✅ 준비완료' : '⏳ 준비 중') + '</span>') + '</div>').join('') || '<p class="muted">비어 있어요.</p>';
+}
+function connect() {
+  if (!window.FBP) { S.net = 'fail'; render(); return; }
+  window.FBP.then(async f => {
+    FB = f; await f.signIn();
+    f.onValue(f.ref('rooms'), snap => {
+      const v = snap.val() || {};
+      S.rooms = [0, 1, 2, 3, 4, 5, 6].map(i => {
+        const r = v[i] || {}, mm = r.m || {};
+        const m = Object.keys(mm).map(u => ({ uid: u, nick: mm[u].n, ready: !!mm[u].r, t: mm[u].t || 0 })).sort((a, b) => a.t - b.t || (a.nick < b.nick ? -1 : 1));
+        return { m: m, st: r.st === 'play' ? 'playing' : 'open', start: r.start || null, pub: r.pub || null };
+      });
+      render();
+    }, e => { S.net = 'fail'; S.err = e.code || ''; render(); });
+    f.onValue(f.ref('rank'), snap => {
+      const v = snap.val() || {};
+      S.rank = Object.keys(v).map(k => ({ nick: k, pts: v[k].pts || 0, wins: v[k].wins || 0 })).sort((a, b) => b.pts - a.pts || b.wins - a.wins);
+      render();
+    });
+    S.net = 'ok'; render();
+  }).catch(e => { S.net = 'fail'; S.err = (e && (e.code || e.message)) || ''; render(); });
+}
+const clearRoom = i => ({ ['rooms/' + i]: null, ['ev/' + i]: null, ['res/' + i]: null });
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const a = b.dataset.a, i = +b.dataset.i, r = S.rooms[i];
+  if (a === 'spec') { S.spec = i; $('#spec').hidden = false; render(); return; }
+  if (!FB) return;
+  const bad = er => { S.net = 'fail'; S.err = (er && er.code) || ''; render(); };
+  if (a === 'kick') { const m = r.m[+b.dataset.k]; if (m && confirm(m.nick + ' 학생을 내보낼까요?')) FB.remove(FB.ref('rooms/' + i + '/m/' + m.uid)).catch(bad); }
+  else if (a === 'go') {
+    if (!allReady(r) || r.st === 'playing') return;
+    const u = { ['ev/' + i]: null, ['res/' + i]: null, ['rooms/' + i + '/pub']: null, ['rooms/' + i + '/st']: 'play',
+      ['rooms/' + i + '/start']: { seed: Math.floor(Math.random() * 2147483646) + 1, names: r.m.map(x => x.nick), gid: Date.now().toString(36) } };
+    FB.update(FB.root, u).catch(bad);
+  }
+  else if (a === 'reset') { if (confirm((i + 1) + '번 방을 비울까요? 게임 중이면 학생들이 처음 화면으로 돌아가요.')) FB.update(FB.root, clearRoom(i)).catch(bad); }
+  else if (a === 'rankReset') { if (confirm('랭킹을 모두 지울까요?')) FB.remove(FB.ref('rank')).catch(bad); }
+});
+$('#specX').addEventListener('click', () => { S.spec = -1; $('#spec').hidden = true; });
+$('#resetAll').addEventListener('click', () => { if (FB && confirm('7개 방을 모두 비울까요?')) { let u = {}; for (let i = 0; i < 7; i++) Object.assign(u, clearRoom(i)); FB.update(FB.root, u).catch(() => { }); } });
+$('#lock').addEventListener('click', () => { $('#admin').hidden = true; $('#gate').hidden = false; $('#pw').value = ''; $('#spec').hidden = true; S.spec = -1; });
+function enter() {
+  if ($('#pw').value === PW) { $('#gate').hidden = true; $('#admin').hidden = false; $('#pwErr').textContent = ''; render(); }
+  else { $('#pwErr').textContent = '비밀번호가 달라요.'; $('#pw').select(); }
+}
+$('#pwGo').addEventListener('click', enter);
+$('#pw').addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+$('#pw').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); $('#pwErr').textContent = ''; });
+window.__t = { S: S, render: render };
+connect();
+})();
+</script>
+</body>
+</html>
