@@ -182,8 +182,10 @@ input[type="range"] { width: 100%; accent-color: var(--co); height: 28px; }
 .gm-hud { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .gpl { flex: 1 1 140px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 3px solid var(--ink); border-radius: 12px; padding: 6px 10px; background: #fff; box-shadow: 3px 3px 0 var(--ink); }
 .gpl b { font-family: var(--font-d); font-size: 1.1rem; padding: 0 8px; border-radius: 8px; background: var(--c); border: 2px solid var(--ink); }
+.gpl .hr { display: flex; flex-wrap: wrap; max-width: 100%; }
 .gpl .hr i { font-style: normal; color: #d8d2e8; font-size: 1.05rem; letter-spacing: 1px; }
 .gpl .hr i.on { color: #ff4f7b; }
+.gpl .hr i.half { background: linear-gradient(90deg, #ff4f7b 50%, #d8d2e8 50%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
 .gpl.turn { background: #fff7c9; transform: translateY(-2px); }
 .gpl.out { opacity: .45; filter: grayscale(1); }
 .gm-msg { margin: 10px 4px 6px; font-size: 1.02rem; min-height: 1.5em; }
@@ -320,7 +322,9 @@ select.blank.sg { margin-right: 2px; }
   .gm-hud { gap: 6px; flex-wrap: nowrap; }
   .gpl { flex: 1 1 0; min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 8px; box-shadow: 2px 2px 0 var(--ink); }
   .gpl b { font-size: .95rem; }
-  .gpl .hr i { font-size: .8rem; letter-spacing: 0; }
+  .gpl .hr i { font-size: .6rem; letter-spacing: 0; }
+  .gpl .hr { max-width: 3em; }
+  .gpl b { max-width: 100%; overflow-wrap: anywhere; font-size: .82rem; }
   .gt { font-size: .92rem; padding: 3px 8px; }
 }
 .base.subst { margin-top: 8px; flex-wrap: wrap; }
@@ -347,6 +351,8 @@ select.blank.sg { margin-right: 2px; }
   .step .math { font-size: 1em; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+body.spec header, body.spec nav.tabs, body.spec footer, body.spec [data-lb="home"] { display: none !important; }
+body.spec .wrap { padding-top: 4px; }
 </style>
 </head>
 <body>
@@ -1084,7 +1090,7 @@ const GKIDS = [
   { name: '보리', col: '#ff8fb1', shirt: '#ff8fb1', hair: '#8a5a3c', kind: 'buns' },
   { name: '콩이', col: '#3fc08a', shirt: '#3fc08a', hair: '#ff8a3d', kind: 'spike' }
 ];
-const GLIVES = 5, GV0 = 22, GGRAV = 28, GHIT = 1.0, GDT = 1 / 120;
+const GLIVES = 8, GV0 = 22, GGRAV = 28, GHIT = 1.0, GDT = 1 / 120;
 const GK = 0.68, GFOOT = 0.68, GX = 20, GY = 12, GAMAX = 9, GLEN = 8, GRATE = 0.55;   /* GRATE: 무리구마 날아가는 화면 속도(1 = 원래 속도) */   /* 캐릭터 크기 배율, 발~몸 높이, 좌표 범위 ±GX, ±GY */
 const gm = { players: [], turn: 0, target: 1, phase: 'aim', g: {}, clouds: [], spots: [], tufts: [], v: { s: 1, a: 1, p: 0, q: 0 }, fl: null, item: null, drawn: false, fx: [], texts: [], msg: '', t: 0, raf: 0, last: 0, shake: 0, winner: -1, hills: [0, 0] };
 let gmRs = 1;
@@ -1132,7 +1138,8 @@ function gmNew(names, seed) {
   { const pr = gm.players.map((p, i) => i).filter(i => !gm.players[i].out); gm.turn = pr[gmRnd(pr.length)]; }
   gm.turn0 = gm.turn;
   gm.phase = 'wait'; gm.order = []; gm.rl = null; gm.fl = null; gm.item = null; gm.drawn = false; gm.lm = 1; gm.fx = []; gm.texts = []; gm.winner = -1; gm.shake = 0;
-  gmEnsure(gm.turn); gm.players.forEach(p => { p.pop = 1; });
+  for (let k = 0; k < 4; k++) gm.players.forEach((p, i) => { if (!p.out) gmEnsure(i); });   /* 시작할 때만 모두 맞힐 수 있는 자리로 맞춰요 */
+  gm.players.forEach(p => { p.pop = 1; });
   gm.v = { s: 1, a: 1, p: 0, q: 0 };
   gm.msg = '게임 시작을 누르면 룰렛으로 순서를 정해요!';
   gmRender();
@@ -1141,7 +1148,7 @@ function gmNew(names, seed) {
 function gmBegin(order) {
   gm.idle = 0; gm.tidle = 0;
   gm.order = order.slice(); gm.rl = null; gm.turn = order[0]; gm.phase = 'aim'; gm.item = null; gm.drawn = false; gm.lm = 1;
-  gmEnsure(gm.turn); gm.players.forEach(p => { p.pop = 1; });
+  gm.players.forEach(p => { p.pop = 1; });
   gm.v = { s: 1, a: 1, p: 0, q: 0 };
   gm.msg = gm.players[gm.turn].k.name + ' 차례! 🎁 아이템을 뽑고 식을 만들어 무리구마를 날려요.';
   gmRender();
@@ -1251,6 +1258,11 @@ function gmSimulate(si, s, a, opt) {
       vy -= GGRAV * GDT; bx += vx * GDT; by += vy * GDT; x = bx; y = by;
     }
     if (opt.loop) { const ph = d * 0.7; x = bx + 1.3 * Math.sin(ph); y = by + 1.3 * (1 - Math.cos(ph)); }
+    else if (opt.tri || opt.wave) {   /* 가는 방향의 옆으로 흔들려요: 삼각형은 지그재그, S모양은 부드러운 물결 */
+      const vl = Math.hypot(vx, vy) || 1, nx = -vy / vl, ny = vx / vl, ph = d * 0.8;
+      const off = opt.wave ? 1.5 * Math.sin(ph) : 1.7 * (2 / Math.PI) * Math.asin(Math.sin(ph));
+      x = bx + nx * off; y = by + ny * off;
+    }
     push();
     if (opt.shatter && d >= total * (opt.shAt || 0.6)) { reason = 'shatter'; break; }
     if (test()) { reason = 'hit'; break; }
@@ -1267,14 +1279,15 @@ function gmSimulate(si, s, a, opt) {
 
 /* ----- 아이템 ----- */
 const GITEMS = [
-  { id: 'big', w: 20, icon: '🍠', name: '고구마 2배', desc: '이번 발사는 고구마가 2배 커져서 맞는 범위도 2배예요!' },
-  { id: 'tiny', w: 25, icon: '🔬', name: '고구마 0.5배', desc: '이번 발사는 고구마가 작아져요. 맞는 범위가 절반!' },
-  { id: 'break', w: 10, icon: '💥', name: '고구마 산산조각', desc: '고구마가 날아가다 부서져요. 이번엔 못 맞춰요!' },
-  { id: 'loop', w: 25, icon: '🌀', name: '빙글빙글 고구마', desc: '고구마가 원을 그리며 나가요. 맞을 수도, 빗나갈 수도!' },
-  { id: 'none', w: 20, icon: '💨', name: '꽝', desc: '이번엔 아무 일도 없었어요.' }
+  { id: 'big', w: 20, icon: '🍠', name: '고구마 2배', desc: '고구마가 2배 커져서 맞히기 쉬워요. 대신 맞으면 피가 2배로 닳아요!' },
+  { id: 'tiny', w: 25, icon: '🔬', name: '고구마 0.5배', desc: '고구마가 작아져요. 맞히기 어렵고, 맞아도 피가 절반만 닳아요.' },
+  { id: 'loop', w: 15, icon: '🌀', name: '빙글빙글 고구마', desc: '고구마가 원을 그리며 나가요. 맞을 수도, 빗나갈 수도!' },
+  { id: 'tri', w: 15, icon: '📐', name: '삼각형 고구마', desc: '고구마가 삼각형 모양(지그재그)으로 나가요.' },
+  { id: 'wave', w: 15, icon: '〰️', name: 'S모양 고구마', desc: '고구마가 S자로 구불구불 나가요.' },
+  { id: 'none', w: 10, icon: '💨', name: '꽝', desc: '이번엔 아무 일도 없었어요.' }
 ];
-const GLENS = [[1 / 3, '1/3배'], [0.5, '1/2배'], [1, '1배'], [1.5, '1.5배'], [2, '2배']];
-function gmItemOpt() { const id = gm.item && gm.item.id; return { len: GLEN * (gm.lm || 1), hit: id === 'big' ? GHIT * 2 : id === 'tiny' ? GHIT * 0.5 : GHIT, shatter: id === 'break', loop: id === 'loop' }; }
+const GLENS = [[1 / 3, '1/3배'], [0.5, '1/2배'], [1, '1배'], [1.5, '1.5배']];
+function gmItemOpt() { const id = gm.item && gm.item.id; return { len: GLEN * (gm.lm || 1), hit: id === 'big' ? GHIT * 2 : id === 'tiny' ? GHIT * 0.5 : GHIT, shatter: false, loop: id === 'loop', tri: id === 'tri', wave: id === 'wave' }; }
 function gmPickId() {
   const P = gm.players[gm.turn], pool = GITEMS.filter(it => it.id !== 'heal' || P.lives < GLIVES);
   let r = Math.random() * pool.reduce((a, x) => a + x.w, 0), it = pool[pool.length - 1]; for (const x of pool) { r -= x.w; if (r < 0) { it = x; break; } } return it.id;
@@ -1313,7 +1326,7 @@ function gst(id, val) {
 function gmHud() {
   $('#gmHud').innerHTML = gm.players.map((p, i) => {
     if (p.out) return '';
-    let h = ''; for (let k = 0; k < GLIVES; k++) h += '<i class="' + (k < p.lives ? 'on' : '') + '">♥</i>';
+    let h = ''; for (let k = 0; k < GLIVES; k++) h += '<i class="' + (p.lives - k >= 1 ? 'on' : p.lives - k >= 0.5 ? 'half' : '') + '">♥</i>';
     return '<div class="gpl' + (i === gm.turn && gm.phase !== 'over' && gm.phase !== 'wait' && gm.phase !== 'spin' && p.alive ? ' turn' : '') + (p.alive ? '' : ' out') + '" style="--c:' + p.k.col + '"><b>' + p.k.name + '</b><span class="hr">' + h + '</span></div>';
   }).join('');
 }
@@ -1611,7 +1624,7 @@ function gmFire() {
 function gmFireGo(sh) {
   const P = gm.players[gm.turn]; P.skips = 0; gm.idle = 0;
   const io = gmItemOpt(); io.shAt = sh; const res = gmSimulate(gm.turn, gm.v.s, gm.v.a, io);
-  gm.fl = { si: gm.turn, loopy: !!io.loop, pscale: io.hit > GHIT ? 2 : io.hit < GHIT ? 0.6 : 1, res: res, ph: 'curve', t: 0 };
+  gm.fl = { si: gm.turn, dmg: io.hit > GHIT ? 2 : io.hit < GHIT ? 0.5 : 1, loopy: !!(io.loop || io.tri || io.wave), pscale: io.hit > GHIT ? 2 : io.hit < GHIT ? 0.6 : 1, res: res, ph: 'curve', t: 0 };
   gm.phase = 'fly'; gm.msg = '곡선이 그려져요…'; gmPanel(); gmMsg(); gmStartLoop();
 }
 function gmSpawnStars(x, y, col) {
@@ -1627,8 +1640,8 @@ function gmResolve() {
       gm.msg = P.k.name + '의 무리구마를 ' + V.k.name + '의 방어막이 막았어요!';
       gmHud(); gmMsg(); return;
     }
-    V.lives--; V.hurt = 1.2; P.cheer = 1.2; gm.shake = 1;
-    gmSpawnStars(V.x, V.y, '#ff5d8f'); gm.texts.push({ x: V.x, y: V.y + 2.4, s: '-1 ♥', col: '#d6246e', t: 0, life: 1.4, big: true });
+    V.lives = Math.max(0, V.lives - fl.dmg); V.hurt = 1.2; P.cheer = 1.2; gm.shake = 1;
+    gmSpawnStars(V.x, V.y, '#ff5d8f'); gm.texts.push({ x: V.x, y: V.y + 2.4, s: '-' + fl.dmg + ' ♥', col: '#d6246e', t: 0, life: 1.4, big: true });
     gm.msg = P.k.name + '의 무리구마가 ' + V.k.name + '에게 명중! ' + V.k.name + ' ♥ ' + V.lives;
     if (V.lives <= 0) { V.alive = false; V.fade = 1; gm.msg += ' — ' + V.k.name + ' 탈락!'; }
     fl.moveAt = 0.9; fl.victim = res.hit;
@@ -1647,11 +1660,12 @@ function gmAdvance() {
   gm.players.forEach((p, i) => { if (!p.alive && !p.out && gm.dead.indexOf(i) < 0) gm.dead.push(i); });
   gm.idle = 0; gm.tidle = 0;
   const left = gm.players.map((p, i) => i).filter(i => gm.players[i].alive);
+  const hitMoved = !!(gm.fl && gm.fl.victim != null);   /* 맞혀서 자리가 바뀐 때만 자리를 다시 점검해요 (빗나가면 아무도 움직이지 않아요) */
   gm.fl = null;
   if (left.length === 1) { gm.winner = left[0]; gm.phase = 'over'; gm.msg = gm.players[gm.winner].k.name + ' 최후의 승자!'; gm.players[gm.winner].cheer = 99; if (gm.online && window.__lbWin) window.__lbWin(gm); }
   else {
     const od = gm.order && gm.order.length ? gm.order : gm.players.map((p, i) => i).filter(i => !gm.players[i].out); let pos = od.indexOf(gm.turn), n = gm.turn; do { pos = (pos + 1) % od.length; n = od[pos]; } while (!gm.players[n].alive);
-    gm.turn = n; gm.item = null; gm.drawn = false; gm.lm = 1; gmEnsure(n); gm.phase = 'aim'; gm.v = { s: 1, a: 1, p: 0, q: 0 };
+    gm.turn = n; gm.item = null; gm.drawn = false; gm.lm = 1; if (hitMoved) gmEnsure(n); gm.phase = 'aim'; gm.v = { s: 1, a: 1, p: 0, q: 0 };
     gm.msg = gm.players[n].k.name + ' 차례! 식을 만들어 무리구마를 날려요.';
   }
   gmRender();
@@ -1668,7 +1682,8 @@ function gmTick(now) {
   if (gm.online && gm.phase === 'aim') {
     gm.idle += dt; gm.tidle += dt;
     const mine = gmMine(), over = mine ? (gm.idle >= 60 || gm.tidle >= 180) : gm.tidle >= 75;   /* 내 차례는 입력 없이 60초, 다른 친구 화면은 만일을 위해 75초 */
-    if (over) { if (gm.net) { gm.idle = 57; gm.tidle = Math.min(gm.tidle, 72); netSend({ t: 'skip' }); } else gmSkip(); }
+    if (over && gm.net && gm.net.me < 0) { /* 관전 중에는 입력하지 않아요 */ }
+    else if (over) { if (gm.net) { gm.idle = 57; gm.tidle = Math.min(gm.tidle, 72); netSend({ t: 'skip' }); } else gmSkip(); }
   }
   const fl = gm.fl;
   if (fl) {
@@ -1690,7 +1705,14 @@ function gmTick(now) {
 }
 function gmStartLoop() {
   if (gm.raf) return;
-  const loop = now => { gm.raf = requestAnimationFrame(loop); gmTick(now); };
+  const loop = now => {
+    gm.raf = requestAnimationFrame(loop); gmTick(now);
+    const n = gm.net;
+    if (n && n.me < 0) {   /* 관전: 중간에 들어왔으면 지난 장면을 빠르게 따라잡아요 */
+      let k = 0; while (k < 14 && (n.q.length || (gm.phase === 'spin' && (Date.now() - n.t0) / 1000 - gm.t > 2))) { gmTick(gm.last + 50); k++; }
+      gm.last = now;
+    }
+  };
   gm.last = performance.now(); gm.raf = requestAnimationFrame(loop);
 }
 function gmStopLoop() { if (gm.raf) cancelAnimationFrame(gm.raf); gm.raf = 0; }
@@ -1698,7 +1720,9 @@ function gmStopLoop() { if (gm.raf) cancelAnimationFrame(gm.raf); gm.raf = 0; }
 let gmMode = 'lobby';
 const NICK_A = ['용감한', '졸린', '빠른', '느긋한', '반짝이는', '배고픈', '씩씩한', '엉뚱한', '똑똑한', '수줍은', '날쌘', '포근한', '당당한', '장난꾸러기', '따뜻한', '상큼한', '든든한', '말랑한', '신나는', '조용한'];
 const NICK_N = ['고구마', '감자', '루트', '포물선', '구름', '곰돌이', '번개', '별똥별', '도토리', '호박', '로켓', '수박', '펭귄', '알밤', '토마토', '주먹밥', '꿀벌', '무지개', '눈사람', '함수', '집합', '명제', '정의역', '치역', '역함수', '꼭짓점', '점근선', '제곱근', '원주율', '벡터', '가우스', '오일러', '피타고라스', '유클리드', '뉴턴', '페르마', '데카르트', '파스칼', '갈루아', '리만', '라마누잔', '튜링'];
-const LB = { screen: 'home', me: null, room: -1, rooms: [], rank: [], pa: 0, pn: 0, err: '', net: 'connecting', uid: null, pvTok: 0 };
+const SPEC = (() => { const m = (location.search || '').match(/[?&]spec=(\d)/); return m ? +m[1] : -1; })();   /* 선생님 관전 화면 (?spec=방번호) */
+if (SPEC >= 0) { document.body.classList.add('spec'); try { if (location.hash !== '#game') location.hash = '#game'; } catch (e) { } }
+const LB = { num: '', screen: 'home', me: null, room: -1, rooms: [], rank: [], pa: 0, pn: 0, err: '', net: 'connecting', uid: null, pvTok: 0 };
 const lbRnd = n => Math.floor(Math.random() * n);
 for (let i = 0; i < 7; i++) LB.rooms.push({ m: [], st: 'open', start: null });
 LB.pa = lbRnd(NICK_A.length); LB.pn = lbRnd(NICK_N.length);
@@ -1707,7 +1731,7 @@ const lbSha = async s => {
   try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join(''); }
   catch (e) { let h = 5381; for (const c of s) h = ((h * 33) ^ c.charCodeAt(0)) >>> 0; return 'h' + h; }
 };
-function lbNick() { return NICK_A[LB.pa] + ' ' + NICK_N[LB.pn]; }
+function lbNick() { return NICK_A[LB.pa] + ' ' + NICK_N[LB.pn] + ' ' + (LB.num || ''); }
 function lbConnect() {
   if (!window.FBP) { LB.net = 'fail'; return; }
   window.FBP.then(async f => {
@@ -1721,7 +1745,7 @@ function lbConnect() {
     LB.net = 'ok'; lbRefresh();
   }).catch(e => { LB.net = 'fail'; LB.netErr = (e && (e.code || e.message)) || ''; lbRefresh(); });
 }
-function lbRefresh() { if (cur === 'game' && gmMode === 'lobby' && ['home', 'rooms', 'wait'].indexOf(LB.screen) >= 0) lbRender(); }
+function lbRefresh() { if (SPEC >= 0) return; if (cur === 'game' && gmMode === 'lobby' && ['home', 'rooms', 'wait'].indexOf(LB.screen) >= 0) lbRender(); }
 function lbRooms(v) {
   LB.rooms = [0, 1, 2, 3, 4, 5, 6].map(i => {
     const r = v[i] || {}, mm = r.m || {};
@@ -1730,7 +1754,24 @@ function lbRooms(v) {
   });
   lbOnRooms();
 }
+function lbSpecStart(R) {
+  const st = R.start; gmMode = 'play'; $('#gLobby').hidden = true; $('#gCard').hidden = false;
+  gmNew(st.names, st.seed);
+  const n = gm.net = { room: SPEC, gid: st.gid, me: -1, seq: 0, q: [], busy: 0, off: null, t0: parseInt(st.gid, 36) || Date.now() };
+  n.off = FB.onChildAdded(FB.ref('ev/' + SPEC + '/' + st.gid), snap => { n.q.push({ k: +snap.key, v: snap.val() }); n.q.sort((a, b) => a.k - b.k); });
+  gmRender(); gmStartLoop(); gmStart();
+}
+function lbSpecCheck() {
+  const R = LB.rooms[SPEC];
+  if (gmMode === 'play' && gm.net) {
+    if (!R.start || R.start.gid !== gm.net.gid) { gmStopLoop(); try { gm.net.off(); } catch (e) { } gm.net = null; gmMode = 'lobby'; $('#gCard').hidden = true; $('#gLobby').hidden = false; lbRender(); lbSpecCheck(); }
+    return;
+  }
+  if (R.st === 'playing' && R.start) { lbSpecStart(R); return; }
+  const el = $('#specMsg'); if (el) el.textContent = R.m.length ? R.m.map(x => x.nick).join(', ') + ' 님이 대기 중이에요. 게임이 시작되면 자동으로 보여요.' : '아직 아무도 없어요. 게임이 시작되면 자동으로 보여요.';
+}
 function lbOnRooms() {
+  if (SPEC >= 0) { lbSpecCheck(); return; }
   if (gmMode === 'play' && gm.net) {
     const R = LB.rooms[gm.net.room];
     if (!R.start || R.start.gid !== gm.net.gid) { lbHome('선생님이 방을 초기화했어요.'); return; }
@@ -1753,6 +1794,7 @@ function lbRankHtml() {
 }
 function lbRender() {
   const el2 = $('#gLobby'); if (!el2) return;
+  if (SPEC >= 0) { el2.innerHTML = '<h2>👁 ' + (SPEC + 1) + '번 방 관전</h2><p class="lb-sub" id="specMsg">연결하는 중…</p>'; if (LB.net === 'ok') lbSpecCheck(); return; }
   let h = '';
   const err = LB.err ? '<p class="lb-err">' + LB.err + '</p>' : '';
   if (LB.screen === 'home') {
@@ -1765,8 +1807,9 @@ function lbRender() {
       '<select id="lbN" aria-label="이름">' + NICK_N.map((x, i) => '<option value="' + i + '"' + (i === LB.pn ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>' +
       '<button type="button" class="btn xs" data-lb="rand">🎲 랜덤</button></div>' +
       '<div class="lb-prev" id="lbPrev"></div>' +
+      '<label class="lb-pin">번호 (1~100) <input id="lbNum" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="1~100" value="' + LB.num + '"></label>' +
       '<label class="lb-pin">나만의 비밀번호 <input id="lbPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0000"></label>' +
-      '<p class="lb-hint">숫자 4자리예요. 처음 쓰는 닉네임이면 이 번호로 등록되고, 다시 들어올 때 같은 번호를 입력해요.</p>' +
+      '<p class="lb-hint">번호는 같은 닉네임인 친구와 겹치지 않게 1~100 중에 골라요. 비밀번호는 숫자 4자리예요. 처음 쓰는 닉네임이면 이 비밀번호로 등록되고, 다시 들어올 때 같은 것을 입력해요.</p>' +
       '<p class="lb-err" id="lbErr">' + LB.err + '</p>' +
       '<div class="lb-row"><button type="button" class="btn alt" data-lb="home">← 뒤로</button><button type="button" class="btn" data-lb="go" id="lbGo">입장하기</button></div>';
   } else if (LB.screen === 'rooms') {
@@ -1784,7 +1827,7 @@ function lbRender() {
 }
 async function lbPrev() {
   const pv = $('#lbPrev'); if (!pv) return; const n = lbNick(); pv.textContent = n;
-  if (!FB) return; const tok = ++LB.pvTok;
+  if (!FB || !(+LB.num >= 1 && +LB.num <= 100)) return; const tok = ++LB.pvTok;
   try { const s = await FB.get(FB.ref('users/' + n)); if (tok === LB.pvTok && s.exists() && $('#lbPrev')) $('#lbPrev').innerHTML = n + '<small>이미 쓰고 있는 닉네임이에요 · 번호가 맞으면 입장해요</small>'; } catch (e) { }
 }
 function lbMaybeFree(i) { if (!FB) return; FB.get(FB.ref('rooms/' + i + '/m')).then(s => { if (!s.exists()) FB.remove(FB.ref('rooms/' + i)); }).catch(() => { }); }
@@ -1805,8 +1848,10 @@ async function lbJoin(i) {
   } catch (e) { LB.err = '입장하지 못했어요. 잠시 뒤에 다시 해 보세요.'; lbRender(); }
 }
 async function lbLogin() {
-  const pin = ($('#lbPin') || {}).value || '', n = lbNick(), er = $('#lbErr'), go = $('#lbGo');
+  const pin = ($('#lbPin') || {}).value || '', nm = +(($('#lbNum') || {}).value || 0), er = $('#lbErr'), go = $('#lbGo');
   const bad = t => { LB.err = t; if (er) er.textContent = t; if (go) go.disabled = false; };
+  if (!(nm >= 1 && nm <= 100)) return bad('번호는 1부터 100 사이로 입력해요.');
+  LB.num = String(nm); const n = lbNick();
   if (!/^\d{4}$/.test(pin)) return bad('비밀번호는 숫자 4자리로 입력해요.');
   if (!FB) return bad('서버에 연결되는 중이에요. 잠시 뒤에 다시 눌러요.');
   if (go) go.disabled = true;
@@ -1836,7 +1881,7 @@ function lbHome(msg) {
 function lbPlay(names) { lbShowGame(); gmNew(names); gmStartLoop(); if (names) gmStart(); }
 /* 게임 진행: 모든 입력은 '이벤트'로 서버에 쌓이고, 모든 기기가 같은 순서로 똑같이 실행해요 */
 function netSend(o) {
-  const n = gm.net; if (!n || !FB || n.busy) return false;
+  const n = gm.net; if (!n || !FB || n.busy || n.me < 0) return false;
   n.busy = Date.now();
   FB.set(FB.ref('ev/' + n.room + '/' + n.gid + '/' + n.seq), o).catch(() => { n.busy = 0; });
   return true;
@@ -1858,11 +1903,7 @@ function netPump() {
     n.q.shift(); n.seq++; n.busy = 0;
   }
 }
-function netPub() {
-  const n = gm.net; if (!n || !FB) return;
-  const first = gm.players.findIndex(p => !p.out && p.alive); if (first < 0 || n.me !== first) return;   /* 살아있는 첫 친구만 선생님 화면용 정보를 써요 */
-  FB.set(FB.ref('rooms/' + n.room + '/pub'), { ph: gm.phase, turn: gm.players[gm.turn] ? gm.players[gm.turn].k.name : '', msg: gm.msg || '', w: gm.winner >= 0 ? gm.players[gm.winner].k.name : '', pl: gm.players.filter(p => !p.out).map(p => ({ n: p.k.name, l: p.lives, a: p.alive ? 1 : 0 })), t: Date.now() }).catch(() => { });
-}
+function netPub() { }
 window.__lbWin = g => {
   if (!g.net || !FB) return;
   const w = g.players[g.winner].k.name, l = g.dead.length ? g.players[g.dead[g.dead.length - 1]].k.name : null;
@@ -1877,7 +1918,7 @@ $('#tab-game').addEventListener('click', e => {
   if (a === 'enter') { LB.screen = 'nick'; LB.err = ''; lbRender(); }
   else if (a === 'practice') lbPlay();
   else if (a === 'home') lbHome();
-  else if (a === 'rand') { LB.pa = lbRnd(NICK_A.length); LB.pn = lbRnd(NICK_N.length); lbRender(); }
+  else if (a === 'rand') { LB.pa = lbRnd(NICK_A.length); LB.pn = lbRnd(NICK_N.length); LB.num = String(1 + lbRnd(100)); lbRender(); }
   else if (a === 'go') lbLogin();
   else if (a === 'room') lbJoin(+b.dataset.i);
   else if (a === 'ready') { const m = LB.rooms[LB.room].m.filter(x => x.me)[0]; if (m && FB) FB.set(FB.ref('rooms/' + LB.room + '/m/' + LB.uid + '/r'), !m.ready).catch(() => { }); }
@@ -1887,7 +1928,7 @@ $('#tab-game').addEventListener('change', e => {
   if (e.target.id === 'lbA') { LB.pa = +e.target.value; lbPrev(); }
   else if (e.target.id === 'lbN') { LB.pn = +e.target.value; lbPrev(); }
 });
-$('#tab-game').addEventListener('input', e => { if (e.target.id === 'lbPin') { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); const er = $('#lbErr'); if (er) er.textContent = ''; } });
+$('#tab-game').addEventListener('input', e => { if (e.target.id === 'lbNum') { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3); LB.num = e.target.value; lbPrev(); const er = $('#lbErr'); if (er) er.textContent = ''; } if (e.target.id === 'lbPin') { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); const er = $('#lbErr'); if (er) er.textContent = ''; } });
 $('#tab-game').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lbPin') lbLogin(); });
 lbConnect();
 function gmEnter() { if (gmMode === 'lobby') { lbRender(); return; } if (!gm.players.length) gmNew(); else gmRender(); gmStartLoop(); }

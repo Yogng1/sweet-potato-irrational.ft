@@ -65,6 +65,16 @@ button { font: inherit; color: inherit; }
 .spec .p b { font-family: var(--font-d); font-weight: 400; display: block; }
 .spec .p.dead { opacity: .45; }
 .spec .hp { color: #ff4d79; letter-spacing: 1px; }
+.modal .card.wide { width: min(1080px, 100%); }
+.specf { width: 100%; height: min(74vh, 680px); border: 3px solid var(--ink); border-radius: 12px; background: #fff; display: block; }
+.nick-card { margin-top: 16px; }
+.nick-card h2 { font-size: 1.3rem; margin-bottom: 6px; }
+.nick-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 10px; }
+.nick-tools input { font: inherit; padding: 4px 10px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; min-width: 12em; }
+.nick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; max-height: 340px; overflow: auto; padding: 2px; }
+.nick-list li { list-style: none; display: flex; align-items: center; gap: 6px; border: 2px solid var(--ink); border-radius: 10px; padding: 2px 8px; background: #fff; }
+.nick-list li b { flex: 1; font-family: var(--font-d); font-weight: 400; word-break: keep-all; }
+.nick-list li small { color: var(--muted); }
 .stage { height: 150px; border: 3px solid var(--ink); border-radius: 12px; background: linear-gradient(#bfe3ff, #eaf6ff); display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; color: var(--muted); }
 </style>
 </head>
@@ -94,17 +104,18 @@ button { font: inherit; color: inherit; }
       <div class="card rank" id="rank"></div>
     </div>
     <div class="rooms" id="rooms"></div>
+    <div class="card nick-card"><h2>👤 학생 닉네임 관리 <span class="chip" id="nickCnt"></span></h2><p class="muted">학생이 등록한 닉네임이에요. 지우면 그 닉네임과 랭킹 기록이 함께 사라지고, 그 이름은 다시 새로 등록할 수 있어요.</p><div class="nick-tools"><input id="nickQ" placeholder="닉네임 찾기" aria-label="닉네임 찾기"><button type="button" class="btn red sm" id="nickAll">전체 삭제</button></div><ul class="nick-list" id="nickList" style="margin:0;padding:0"></ul></div>
     <p class="note">학생들이 들어오고 준비하면 이 화면에 실시간으로 나타나요. 게임이 끝나면 랭킹에 점수(1등 3점, 2등 1점)가 저절로 들어가요. 학생이 안 나가고 멈춘 방은 [초기화]로 비워요.</p>
   </div>
 </div>
 
 <div class="modal" id="spec" hidden>
-  <div class="card">
+  <div class="card wide">
     <h2 id="specT"></h2>
-    <div class="stage" id="specStage">🎬 </div>
-    <div class="spec" id="specP"></div>
+    <iframe class="specf" id="specF" title="관전 화면" allow="fullscreen"></iframe>
+    <p class="muted" style="margin:6px 0">실제 플레이 화면이 실시간으로 나와요. 게임 중간에 들어오면 지난 장면을 빠르게 따라잡아요.</p>
     <button type="button" class="btn" id="specX">닫기</button>
-  </div>
+</div>
 </div>
 
 <script>
@@ -123,8 +134,9 @@ window.FBP.catch(() => { });
 'use strict';
 /* 비밀번호는 화면을 가리는 용도예요. 개인정보가 없는 게임이라 이 정도로 충분해요. */
 const PW = '5525';
+const STUDENT = 'irrational_function.html';   /* 학생용 파일 이름 (다르게 올렸다면 여기를 고쳐요) */
 const $ = (s, r) => (r || document).querySelector(s);
-const S = { rooms: [], rank: [], spec: -1, net: 'connecting', err: '' };
+const S = { rooms: [], rank: [], users: [], q: '', spec: -1, net: 'connecting', err: '' };
 for (let i = 0; i < 7; i++) S.rooms.push({ m: [], st: 'open', start: null, pub: null });
 let FB = null;
 
@@ -145,14 +157,21 @@ function render() {
       '<button type="button" class="btn alt" data-a="reset" data-i="' + i + '"' + (has ? '' : ' disabled') + '>↺ 초기화</button></div></div>';
   }).join('');
   if (S.spec >= 0) renderSpec();
+  renderNicks();
 }
 function renderSpec() {
   const r = S.rooms[S.spec]; if (!r) return;
-  const pb = r.pub, pl = r.st === 'playing';
-  $('#specT').textContent = (S.spec + 1) + '번 방 관전 ' + (pl ? '(게임 중)' : '(대기 중)');
-  $('#specStage').innerHTML = pl && pb ? ((pb.w ? '🏆 ' + esc(pb.w) + ' 승리!' : (pb.ph === 'spin' ? '🎲 순서를 정하는 중' : pb.ph === 'wait' ? '시작 준비 중' : '🎯 지금 차례: <b>' + esc(pb.turn) + '</b>')) + '<br><small>' + esc(pb.msg) + '</small>') : pl ? '게임을 시작하는 중…' : '아직 게임이 시작되지 않았어요.';
-  const rows = pl && pb && pb.pl ? pb.pl.map(x => ({ nick: x.n, hp: x.l, dead: !x.a })) : r.m.map(m => ({ nick: m.nick, ready: m.ready }));
-  $('#specP').innerHTML = rows.map(m => '<div class="p' + (m.dead ? ' dead' : '') + '"><b>' + esc(m.nick) + '</b>' + (m.hp != null ? '<span class="hp">' + '♥'.repeat(Math.max(0, m.hp)) + '<span style="opacity:.25">' + '♥'.repeat(Math.max(0, 5 - m.hp)) + '</span></span>' : '<span>' + (m.ready ? '✅ 준비완료' : '⏳ 준비 중') + '</span>') + '</div>').join('') || '<p class="muted">비어 있어요.</p>';
+  $('#specT').textContent = (S.spec + 1) + '번 방 관전 ' + (r.st === 'playing' ? '(게임 중)' : '(대기 중)');
+}
+function openSpec(i) {
+  S.spec = i; $('#spec').hidden = false; $('#specF').src = STUDENT + '?spec=' + i + '#game'; renderSpec();
+}
+function closeSpec() { S.spec = -1; $('#spec').hidden = true; $('#specF').src = 'about:blank'; }
+function renderNicks() {
+  const q = S.q.trim(), list = S.users.filter(u => !q || u.indexOf(q) >= 0);
+  $('#nickCnt').textContent = S.users.length + '명';
+  const pts = {}; S.rank.forEach(x => { pts[x.nick] = x.pts; });
+  $('#nickList').innerHTML = list.map(u => '<li><b>' + esc(u) + '</b>' + (pts[u] != null ? '<small>' + pts[u] + '점</small>' : '') + '<button type="button" class="btn red sm" data-a="delNick" data-n="' + esc(u) + '">삭제</button></li>').join('') || '<li style="border-style:dashed;color:#888">' + (S.users.length ? '찾는 닉네임이 없어요.' : '아직 등록된 닉네임이 없어요.') + '</li>';
 }
 function connect() {
   if (!window.FBP) { S.net = 'fail'; render(); return; }
@@ -172,6 +191,7 @@ function connect() {
       S.rank = Object.keys(v).map(k => ({ nick: k, pts: v[k].pts || 0, wins: v[k].wins || 0 })).sort((a, b) => b.pts - a.pts || b.wins - a.wins);
       render();
     });
+    f.onValue(f.ref('users'), snap => { S.users = Object.keys(snap.val() || {}).sort(); renderNicks(); });
     S.net = 'ok'; render();
   }).catch(e => { S.net = 'fail'; S.err = (e && (e.code || e.message)) || ''; render(); });
 }
@@ -179,7 +199,8 @@ const clearRoom = i => ({ ['rooms/' + i]: null, ['ev/' + i]: null, ['res/' + i]:
 document.addEventListener('click', e => {
   const b = e.target.closest('button[data-a]'); if (!b) return;
   const a = b.dataset.a, i = +b.dataset.i, r = S.rooms[i];
-  if (a === 'spec') { S.spec = i; $('#spec').hidden = false; render(); return; }
+  if (a === 'spec') { openSpec(i); return; }
+  if (a === 'delNick') { const n = b.dataset.n; if (FB && confirm('"' + n + '" 닉네임을 지울까요? 랭킹 기록도 함께 지워져요.')) FB.update(FB.root, { ['users/' + n]: null, ['rank/' + n]: null }).catch(() => { }); return; }
   if (!FB) return;
   const bad = er => { S.net = 'fail'; S.err = (er && er.code) || ''; render(); };
   if (a === 'kick') { const m = r.m[+b.dataset.k]; if (m && confirm(m.nick + ' 학생을 내보낼까요?')) FB.remove(FB.ref('rooms/' + i + '/m/' + m.uid)).catch(bad); }
@@ -192,9 +213,11 @@ document.addEventListener('click', e => {
   else if (a === 'reset') { if (confirm((i + 1) + '번 방을 비울까요? 게임 중이면 학생들이 처음 화면으로 돌아가요.')) FB.update(FB.root, clearRoom(i)).catch(bad); }
   else if (a === 'rankReset') { if (confirm('랭킹을 모두 지울까요?')) FB.remove(FB.ref('rank')).catch(bad); }
 });
-$('#specX').addEventListener('click', () => { S.spec = -1; $('#spec').hidden = true; });
+$('#specX').addEventListener('click', closeSpec);
+$('#nickQ').addEventListener('input', e => { S.q = e.target.value; renderNicks(); });
+$('#nickAll').addEventListener('click', () => { if (FB && S.users.length && confirm('등록된 닉네임 ' + S.users.length + '개와 랭킹을 모두 지울까요?')) FB.update(FB.root, { users: null, rank: null }).catch(() => { }); });
 $('#resetAll').addEventListener('click', () => { if (FB && confirm('7개 방을 모두 비울까요?')) { let u = {}; for (let i = 0; i < 7; i++) Object.assign(u, clearRoom(i)); FB.update(FB.root, u).catch(() => { }); } });
-$('#lock').addEventListener('click', () => { $('#admin').hidden = true; $('#gate').hidden = false; $('#pw').value = ''; $('#spec').hidden = true; S.spec = -1; });
+$('#lock').addEventListener('click', () => { $('#admin').hidden = true; $('#gate').hidden = false; $('#pw').value = ''; closeSpec(); });
 function enter() {
   if ($('#pw').value === PW) { $('#gate').hidden = true; $('#admin').hidden = false; $('#pwErr').textContent = ''; render(); }
   else { $('#pwErr').textContent = '비밀번호가 달라요.'; $('#pw').select(); }
